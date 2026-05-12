@@ -17,7 +17,8 @@ import {
   Package,
   ChevronDown,
   TrendingUp,
-  Rocket
+  Rocket,
+  History
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { ThemeToggle } from './theme-toggle'
@@ -92,6 +93,7 @@ export function Navbar() {
         { href: '/profile', icon: User, label: 'Perfil' },
         { href: '/progress', icon: TrendingUp, label: 'Evolução' },
         { href: '/achievements', icon: Trophy, label: 'Conquistas' },
+        { href: '/history', icon: History, label: 'Histórico' },
       ]
     }
   ]

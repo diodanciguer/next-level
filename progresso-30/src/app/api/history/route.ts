@@ -9,7 +9,12 @@ export async function GET() {
 
     const userId = String(user.id)
 
-    const [transactions, checkins, badHabitLogs, completedMissions, redemptions] = await Promise.all([
+    // Buscar dados para o mapa de calor (últimos 30 dias)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    thirtyDaysAgo.setHours(0,0,0,0)
+
+    const [transactions, checkins, badHabitLogs, completedMissions, redemptions, heatmapCheckins, heatmapMissions] = await Promise.all([
       prisma.transaction.findMany({
         where: { userId },
         orderBy: { date: 'desc' },
@@ -17,7 +22,7 @@ export async function GET() {
       }),
       prisma.habitCheckin.findMany({
         where: { habit: { userId } },
-        include: { habit: { select: { name: true, xpReward: true, coinsReward: true } } },
+        include: { habit: { select: { name: true, xpReward: true, coinsReward: true, id: true } } },
         orderBy: { date: 'desc' },
         take: 30
       }),
@@ -37,10 +42,37 @@ export async function GET() {
         include: { reward: { select: { name: true, coinCost: true } } },
         orderBy: { date: 'desc' },
         take: 30
+      }),
+      prisma.habitCheckin.findMany({
+        where: { habit: { userId }, date: { gte: thirtyDaysAgo } },
+        select: { date: true }
+      }),
+      prisma.mission.findMany({
+        where: { userId, status: 'COMPLETED', completedAt: { gte: thirtyDaysAgo } },
+        select: { completedAt: true }
       })
     ])
 
-    return NextResponse.json({ transactions, checkins, badHabitLogs, completedMissions, redemptions })
+    const heatmapData: Record<string, number> = {}
+    heatmapCheckins.forEach(c => {
+      const d = c.date.toISOString().split('T')[0]
+      heatmapData[d] = (heatmapData[d] || 0) + 1
+    })
+    heatmapMissions.forEach(m => {
+      if (m.completedAt) {
+        const d = m.completedAt.toISOString().split('T')[0]
+        heatmapData[d] = (heatmapData[d] || 0) + 1
+      }
+    })
+
+    return NextResponse.json({ 
+      transactions, 
+      checkins, 
+      badHabitLogs, 
+      completedMissions, 
+      redemptions,
+      heatmapData
+    })
   } catch {
     return NextResponse.json({ message: 'Erro interno' }, { status: 500 })
   }

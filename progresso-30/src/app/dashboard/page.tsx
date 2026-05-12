@@ -18,7 +18,7 @@ import { DashboardSkeleton } from '@/components/dashboard-skeleton'
 import Link from 'next/link'
 
 type UserData = { name: string; xp: number; level: number; coins: number; rank: Rank; characterClass: string }
-type Habit = { id: string; name: string; xpReward: number; coinsReward: number; checkins: any[] }
+type Habit = { id: string; name: string; xpReward: number; coinsReward: number; checkins: any[]; frequency: string }
 type BadHabit = { id: string; name: string; xpLost: number; coinsLost: number; logs: any[] }
 type Mission = { id: string; name: string; difficulty: string; xpReward: number; coinsReward: number; status: string }
 
@@ -265,36 +265,79 @@ export default function Dashboard() {
             <Link href="/habits"><Button variant="ghost" size="sm" className="text-xs">Ver todos <ChevronRight className="h-3 w-3 ml-1" /></Button></Link>
           </div>
           <div className="space-y-2">
-            {habits.length === 0 ? (
-              <Link href="/habits"><Card className="p-4 text-center border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer hover:shadow-sm">
-                <p className="text-slate-500 text-sm">Nenhum hábito. Criar agora →</p>
-              </Card></Link>
-            ) : habits.map(habit => {
-              const checked = isHabitDone(habit)
-              return (
-                <motion.div key={habit.id} layout>
-                  <Card className={`transition-all ${checked ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm'}`}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <motion.div whileTap={{ scale: 0.9 }}>
-                        <Button
-                          variant="ghost" size="icon"
-                          className={`h-11 w-11 rounded-full border-2 shrink-0 transition-all ${checked ? 'border-green-400 bg-green-100 dark:bg-green-900/40 text-green-600 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-400 hover:text-red-500' : 'border-slate-200 dark:border-slate-700 text-slate-400 hover:border-green-400 hover:text-green-500'}`}
-                          onClick={(e) => handleCheckin(e, habit.id, checked)}
-                          title={checked ? 'Desfazer check-in' : 'Marcar como feito'}
-                        >
-                          <CheckCircle2 className="h-5 w-5" />
-                        </Button>
-                      </motion.div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-semibold truncate ${checked ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>{habit.name}</p>
-                        <p className="text-xs text-slate-400">+{habit.xpReward} XP · +{habit.coinsReward} 🪙</p>
+            <AnimatePresence mode="popLayout">
+              {habits.filter(h => !isHabitDone(h)).length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  key="victory-card"
+                  className="relative overflow-hidden rounded-2xl border-0 shadow-2xl"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 animate-gradient-xy" />
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20" />
+                  
+                  <CardContent className="relative z-10 p-8 text-center text-white">
+                    <motion.div
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner">
+                        <Trophy className="h-10 w-10 text-yellow-300" />
                       </div>
-                      {checked && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-0 shrink-0">Feito</Badge>}
-                    </CardContent>
-                  </Card>
+                      <h2 className="text-2xl font-black mb-1">DIA LENDÁRIO! 🏆</h2>
+                      <p className="text-indigo-100 text-sm mb-6">Você superou todos os seus desafios hoje.</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+                          <span className="block text-[10px] uppercase font-bold tracking-widest text-indigo-200">Seu Poder</span>
+                          <span className="text-xl font-black">{data?.user.xp || 0} XP</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+                          <span className="block text-[10px] uppercase font-bold tracking-widest text-indigo-200">Seu Tesouro</span>
+                          <span className="text-xl font-black">{data?.user.coins || 0} 🪙</span>
+                        </div>
+                      </div>
+
+                      <Link href="/history">
+                        <Button className="w-full bg-white text-indigo-600 hover:bg-indigo-50 font-bold py-6 rounded-xl shadow-lg">
+                          Ver Minha Jornada <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </motion.div>
+                  </CardContent>
                 </motion.div>
-              )
-            })}
+              ) : habits.filter(h => !isHabitDone(h)).map(habit => {
+                const checked = false // Como filtramos, só sobram os não-feitos
+                return (
+                  <motion.div 
+                    key={habit.id} 
+                    layout
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                  >
+                    <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm transition-all">
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <motion.div whileTap={{ scale: 0.9 }}>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-11 w-11 rounded-full border-2 shrink-0 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-green-400 hover:text-green-500"
+                            onClick={(e) => handleCheckin(e, habit.id, false)}
+                          >
+                            <CheckCircle2 className="h-5 w-5" />
+                          </Button>
+                        </motion.div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{habit.name}</p>
+                          <p className="text-xs text-slate-400">+{habit.xpReward} XP · +{habit.coinsReward} 🪙</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
           </div>
         </motion.section>
 
