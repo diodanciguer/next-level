@@ -119,6 +119,51 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Calcular novo nível e XP após a perda
     const { newLevel, newXp } = applyXpLoss(dbUser.level, dbUser.xp, totalXpToLose)
 
+    // ─── Lógica de Streak ao Desfazer ────────────────
+    const otherCheckinsToday = await prisma.habitCheckin.findFirst({
+      where: { 
+        habit: { userId: String(user.id) },
+        date: { gte: today, lt: tomorrow },
+        id: { not: existingCheckin.id }
+      }
+    })
+
+    const otherMissionsToday = await prisma.mission.findFirst({
+      where: {
+        userId: String(user.id),
+        status: 'COMPLETED',
+        completedAt: { gte: today, lt: tomorrow }
+      }
+    })
+
+    const isLastActionOfDay = !otherCheckinsToday && !otherMissionsToday
+    let streakUpdate = {}
+    
+    if (isLastActionOfDay) {
+      // Buscar a data do último check-in antes de hoje para restaurar o lastCheckin
+      const prevCheckin = await prisma.habitCheckin.findFirst({
+        where: { habit: { userId: String(user.id) }, date: { lt: today } },
+        orderBy: { date: 'desc' }
+      })
+      
+      const prevMission = await prisma.mission.findFirst({
+        where: { userId: String(user.id), status: 'COMPLETED', completedAt: { lt: today } },
+        orderBy: { completedAt: 'desc' }
+      })
+
+      let lastDate = null
+      if (prevCheckin && prevMission) {
+        lastDate = prevCheckin.date > prevMission.completedAt! ? prevCheckin.date : prevMission.completedAt
+      } else {
+        lastDate = prevCheckin?.date || prevMission?.completedAt || null
+      }
+
+      streakUpdate = {
+        streak: Math.max(0, dbUser.streak - 1),
+        lastCheckin: lastDate
+      }
+    }
+
     await prisma.$transaction([
       prisma.habitCheckin.delete({ where: { id: existingCheckin.id } }),
       prisma.user.update({
@@ -126,9 +171,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         data: {
           xp: newXp,
           level: newLevel,
-          coins: Math.max(0, dbUser.coins - habit.coinsReward)
-          // Nota: Reverter streak é complexo sem histórico detalhado por dia, 
-          // mas como o desfazer é para cliques acidentais "na hora", podemos manter a streak.
+          coins: Math.max(0, dbUser.coins - habit.coinsReward),
+          ...streakUpdate
         }
       }),
       prisma.transaction.create({

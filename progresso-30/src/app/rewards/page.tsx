@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Store, Plus, Trophy, Lock, Undo2, ShieldCheck } from 'lucide-react'
+import { RewardsSkeleton } from '@/components/dashboard-skeleton'
 
 type Reward = { id: string; name: string; description?: string; coinCost: number; levelRequired: number; category: string }
 type User = { coins: number; level: number }
@@ -159,7 +160,7 @@ export default function RewardsPage() {
             <Store className="text-purple-500" /> Loja de Recompensas
           </h2>
 
-          {loading ? <p className="text-center text-slate-500 py-8">Carregando...</p>
+          {loading ? <RewardsSkeleton />
           : rewards.length === 0 ? (
             <Card className="p-12 text-center border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <p className="text-slate-500">Sua loja está vazia.</p>

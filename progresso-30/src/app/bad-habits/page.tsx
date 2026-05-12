@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Skull, Plus, Undo2, AlertTriangle, Trash2, Pencil } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useFloatingXp } from '@/components/floating-xp'
+import { BadHabitsSkeleton } from '@/components/dashboard-skeleton'
 
 type BadHabit = { id: string; name: string; description?: string; category: string; xpLost: number; coinsLost: number; logs: { date: string }[] }
 
@@ -19,6 +22,7 @@ export default function BadHabitsPage() {
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const { addFloatingXp, FloatingXpContainer } = useFloatingXp()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -73,12 +77,17 @@ export default function BadHabitsPage() {
     setIsOpen(true)
   }
 
-  const handleLog = async (id: string, alreadyLogged: boolean) => {
+  const handleLog = async (e: React.MouseEvent, id: string, alreadyLogged: boolean) => {
+    const rect = e.currentTarget.getBoundingClientRect()
     const res = await fetch(`/api/bad-habits/${id}/log`, { method: alreadyLogged ? 'DELETE' : 'POST' })
     const d = await res.json()
-    if (res.ok) toast[alreadyLogged ? 'info' : 'warning'](d.message)
-    else toast.error(d.message)
-    fetchData()
+    if (res.ok) {
+      if (!alreadyLogged) {
+        addFloatingXp(d.xpLost, rect.left + rect.width / 2, rect.top, true)
+      }
+      toast[alreadyLogged ? 'info' : 'warning'](d.message)
+      fetchData()
+    } else toast.error(d.message)
   }
 
   const handleDelete = async (id: string) => {
@@ -100,7 +109,12 @@ export default function BadHabitsPage() {
   return (
     <div className="min-h-screen pb-24 sm:pb-0 sm:pt-16 bg-slate-50 dark:bg-slate-950">
       <Navbar />
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
+      <FloatingXpContainer />
+      <motion.main 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="max-w-4xl mx-auto p-4 space-y-6"
+      >
 
         <header className="py-4 flex justify-between items-center">
           <div>
@@ -202,61 +216,76 @@ export default function BadHabitsPage() {
         </Card>
 
         <div className="space-y-3">
-          {loading ? <p className="text-center text-slate-500 py-8">Carregando...</p>
+          {loading ? <BadHabitsSkeleton />
           : badHabits.length === 0 ? (
             <Card className="p-10 text-center border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <Skull className="h-10 w-10 text-slate-300 mx-auto mb-2" />
               <p className="text-slate-500">Nenhum mau hábito cadastrado.</p>
               <p className="text-slate-400 text-sm">Cadastre os hábitos que quer evitar para acompanhar.</p>
             </Card>
-          ) : badHabits.map(bh => {
-            const logged = isLoggedToday(bh)
-            return (
-              <Card key={bh.id} className={`transition-all ${logged ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm'}`}>
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-slate-800 dark:text-slate-100">{bh.name}</h3>
-                      <Badge variant="secondary" className="text-xs">{bh.category}</Badge>
-                    </div>
-                    {bh.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{bh.description}</p>}
-                    <p className="text-sm text-red-500 font-medium mt-1">
-                      -{bh.xpLost} XP {bh.coinsLost > 0 && `· -${bh.coinsLost} 🪙`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {!logged && (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bh)}
-                          className="text-slate-300 hover:text-blue-500 dark:hover:text-blue-400 opacity-50 hover:opacity-100 transition-opacity">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(bh.id)}
-                          className="text-slate-300 hover:text-red-500 dark:hover:text-red-400 opacity-50 hover:opacity-100 transition-opacity">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    {logged && (
-                      <Button variant="ghost" size="icon" title="Desfazer" onClick={() => handleLog(bh.id, true)}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                        <Undo2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant={logged ? 'secondary' : 'destructive'}
-                      size="sm"
-                      onClick={() => handleLog(bh.id, logged)}
-                    >
-                      {logged ? 'Feito hoje' : 'Registrar'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          ) : (
+            <AnimatePresence>
+              {badHabits.map((bh, index) => {
+                const logged = isLoggedToday(bh)
+                return (
+                  <motion.div
+                    key={bh.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: index * 0.05 }}
+                    layout
+                  >
+                    <Card className={`transition-all ${logged ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm'}`}>
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{bh.name}</h3>
+                            <Badge variant="secondary" className="text-xs">{bh.category}</Badge>
+                          </div>
+                          {bh.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{bh.description}</p>}
+                          <p className="text-sm text-red-500 font-medium mt-1">
+                            -{bh.xpLost} XP {bh.coinsLost > 0 && `· -${bh.coinsLost} 🪙`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!logged && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(bh)}
+                                className="text-slate-300 hover:text-blue-500 dark:hover:text-blue-400 opacity-50 hover:opacity-100 transition-opacity">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(bh.id)}
+                                className="text-slate-300 hover:text-red-500 dark:hover:text-red-400 opacity-50 hover:opacity-100 transition-opacity">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {logged && (
+                            <Button variant="ghost" size="icon" title="Desfazer" onClick={(e) => handleLog(e, bh.id, true)}
+                              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <motion.div whileTap={{ scale: 0.95 }}>
+                            <Button
+                              variant={logged ? 'secondary' : 'destructive'}
+                              size="sm"
+                              onClick={(e) => handleLog(e, bh.id, logged)}
+                            >
+                              {logged ? 'Feito hoje' : 'Registrar'}
+                            </Button>
+                          </motion.div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          )}
         </div>
-      </main>
+      </motion.main>
     </div>
   )
 }

@@ -10,7 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { ListChecks, Plus, Trash2, Star, Coins, Pencil } from 'lucide-react'
+import { ListChecks, Plus, Trash2, Star, Coins, Pencil, CheckCircle2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useFloatingXp } from '@/components/floating-xp'
+import { HabitsListSkeleton } from '@/components/dashboard-skeleton'
 
 type Habit = { id: string; name: string; category: string; frequency: string; goal: number; xpReward: number; coinsReward: number; active: boolean; checkins: any[] }
 
@@ -19,6 +22,7 @@ export default function HabitsPage() {
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const { addFloatingXp, FloatingXpContainer } = useFloatingXp()
 
   const [name, setName] = useState('')
   const [category, setCategory] = useState('Saúde')
@@ -76,6 +80,17 @@ export default function HabitsPage() {
     setIsOpen(true)
   }
 
+  const handleCheckin = async (e: React.MouseEvent, habitId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const res = await fetch(`/api/habits/${habitId}/checkin`, { method: 'POST' })
+    const d = await res.json()
+    if (res.ok) {
+      addFloatingXp(d.xpEarned, rect.left + rect.width / 2, rect.top)
+      toast.success(`+${d.xpEarned} XP`)
+      fetchData()
+    } else toast.error(d.message)
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este hábito?')) return
     const res = await fetch(`/api/habits/${id}`, { method: 'DELETE' })
@@ -86,7 +101,12 @@ export default function HabitsPage() {
   return (
     <div className="min-h-screen pb-24 sm:pb-0 sm:pt-16 bg-slate-50 dark:bg-slate-950">
       <Navbar />
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
+      <FloatingXpContainer />
+      <motion.main 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="max-w-4xl mx-auto p-4 space-y-6"
+      >
 
         <header className="py-4 flex justify-between items-center">
           <div>
@@ -190,48 +210,73 @@ export default function HabitsPage() {
         </div>
 
         <div className="space-y-3">
-          {loading ? <p className="text-center text-slate-500 py-8">Carregando...</p>
+          {loading ? <HabitsListSkeleton />
           : habits.length === 0 ? (
             <Card className="p-10 text-center border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <ListChecks className="h-10 w-10 text-slate-300 mx-auto mb-2" />
               <p className="text-slate-500">Nenhum hábito cadastrado ainda.</p>
               <p className="text-slate-400 text-sm">Crie seu primeiro hábito acima!</p>
             </Card>
-          ) : habits.map(habit => (
-            <Card key={habit.id} className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm transition-all">
-              <CardContent className="p-4 flex justify-between items-start">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{habit.name}</h3>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    <Badge variant="secondary" className="text-xs">{habit.category}</Badge>
-                    <Badge variant="outline" className="text-xs">{habit.frequency}</Badge>
-                  </div>
-                  <div className="flex gap-3 mt-2 text-sm">
-                    <span className="text-yellow-600 dark:text-yellow-400 font-semibold flex items-center gap-1">
-                      <Star className="h-3 w-3" /> +{habit.xpReward} XP
-                    </span>
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                      <Coins className="h-3 w-3" /> +{habit.coinsReward} moedas
-                    </span>
-                  <span className="text-slate-400 text-xs">Meta: {habit.goal}x/mês</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(habit)}
-                    className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(habit.id)}
-                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          ) : (
+            <AnimatePresence>
+              {habits.map((habit, index) => (
+                <motion.div
+                  key={habit.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: index * 0.05 }}
+                  layout
+                >
+                  <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm transition-all">
+                    <CardContent className="p-4 flex justify-between items-start">
+                      <div className="flex gap-4 items-center">
+                        <motion.div whileTap={{ scale: 0.9 }}>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-12 w-12 rounded-full border-2 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-green-500 hover:border-green-500"
+                            onClick={(e) => handleCheckin(e, habit.id)}
+                          >
+                            <CheckCircle2 className="h-6 w-6" />
+                          </Button>
+                        </motion.div>
+                        <div>
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{habit.name}</h3>
+                          <div className="flex gap-2 mt-0.5 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{habit.category}</Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{habit.frequency}</Badge>
+                          </div>
+                          <div className="flex gap-3 mt-1.5 text-xs">
+                            <span className="text-yellow-600 dark:text-yellow-400 font-bold flex items-center gap-1">
+                              <Star className="h-3 w-3 fill-yellow-500" /> +{habit.xpReward} XP
+                            </span>
+                            <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                              <Coins className="h-3 w-3 fill-amber-500" /> +{habit.coinsReward} moedas
+                            </span>
+                            <span className="text-slate-400">Meta: {habit.goal}x/mês</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(habit)}
+                          className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(habit.id)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
         </div>
 
-      </main>
+      </motion.main>
     </div>
   )
 }

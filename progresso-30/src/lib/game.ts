@@ -144,12 +144,27 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, {
 
 export type CharacterClass = 'Iniciante' | 'Guerreiro' | 'Mago' | 'Ladino' | 'Ferreiro'
 
-export const CLASS_CONFIG: Record<CharacterClass, { label: string, description: string, bonusCategory: string, icon: string }> = {
-  Iniciante: { label: 'Iniciante', description: 'O começo de uma grande jornada.', bonusCategory: '', icon: '🌟' },
-  Guerreiro: { label: 'Guerreiro', description: '+20% XP em Saúde. Focado em força e disciplina física.', bonusCategory: 'Saúde', icon: '⚔️' },
-  Mago:      { label: 'Mago',      description: '+20% XP em Estudos. Mestre do conhecimento e foco.', bonusCategory: 'Estudos', icon: '🧙' },
-  Ladino:    { label: 'Ladino',    description: '+20% XP em Finanças. Ágil com moedas e economia.', bonusCategory: 'Finanças', icon: '💰' },
-  Ferreiro:  { label: 'Ferreiro',  description: '+20% XP em Trabalho/Casa. Mestre da produtividade.', bonusCategory: 'Trabalho', icon: '🛠️' },
+export const CLASS_CONFIG: Record<CharacterClass, { label: string, description: string, bonusCategory: string, icon: string, themeColor: string, gradient: string }> = {
+  Iniciante: { 
+    label: 'Iniciante', description: 'O começo de uma grande jornada.', bonusCategory: '', icon: '🌟',
+    themeColor: 'slate', gradient: 'from-slate-500 to-slate-700'
+  },
+  Guerreiro: { 
+    label: 'Guerreiro', description: '+20% XP em Saúde. Focado em força e disciplina física.', bonusCategory: 'Saúde', icon: '⚔️',
+    themeColor: 'red', gradient: 'from-red-600 to-orange-700'
+  },
+  Mago:      { 
+    label: 'Mago',      description: '+20% XP em Estudos. Mestre do conhecimento e foco.', bonusCategory: 'Estudos', icon: '🧙',
+    themeColor: 'indigo', gradient: 'from-indigo-600 to-purple-700'
+  },
+  Ladino:    { 
+    label: 'Ladino',    description: '+20% XP em Finanças. Ágil com moedas e economia.', bonusCategory: 'Finanças', icon: '💰',
+    themeColor: 'amber', gradient: 'from-amber-500 to-yellow-600'
+  },
+  Ferreiro:  { 
+    label: 'Ferreiro',  description: '+20% XP em Trabalho/Casa. Mestre da produtividade.', bonusCategory: 'Trabalho', icon: '🛠️',
+    themeColor: 'cyan', gradient: 'from-cyan-600 to-blue-700'
+  },
 }
 
 export function getXpBonus(charClass: string, category: string, baseId: number): number {

@@ -13,7 +13,7 @@ export async function GET() {
     const [user, habits, badHabits, missions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, xp: true, level: true, coins: true }
+        select: { id: true, name: true, xp: true, level: true, coins: true, characterClass: true }
       }),
       prisma.habit.findMany({
         where: { userId, active: true },
