@@ -16,7 +16,8 @@ import {
   Trophy, 
   Package,
   ChevronDown,
-  TrendingUp 
+  TrendingUp,
+  Rocket
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { ThemeToggle } from './theme-toggle'
@@ -73,6 +74,7 @@ export function Navbar() {
         { href: '/habits', icon: ListChecks, label: 'Hábitos' },
         { href: '/bad-habits', icon: Skull, label: 'Vilões' },
         { href: '/missions', icon: Swords, label: 'Missões' },
+        { href: '/plans', icon: Rocket, label: 'Planos' },
       ]
     },
     {
