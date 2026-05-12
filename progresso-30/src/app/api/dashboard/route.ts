@@ -17,7 +17,23 @@ export async function GET() {
       }),
       prisma.habit.findMany({
         where: { userId, active: true },
-        include: { checkins: { where: { date: { gte: (() => { const d = new Date(); d.setHours(0,0,0,0); return d })() } } } }
+        include: { 
+          checkins: { 
+            where: { 
+              date: { 
+                gte: (() => { 
+                  const d = new Date(); 
+                  d.setHours(0,0,0,0);
+                  // Se hoje for domingo(0), volta 6 dias. Se for segunda(1), volta 0.
+                  const day = d.getDay();
+                  const diff = d.getDate() - (day === 0 ? 6 : day - 1);
+                  d.setDate(diff);
+                  return d;
+                })() 
+              } 
+            } 
+          } 
+        }
       }),
       prisma.badHabit.findMany({
         where: { userId, active: true },

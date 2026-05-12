@@ -48,7 +48,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // Se lastDate === today, a streak não muda (mas o checkin já foi bloqueado acima)
     }
 
-    const { newLevel, newXp, leveledUp } = applyXpGain(dbUser.level, dbUser.xp, totalXpGain)
+    // ─── Lógica de Meta Mensal ───────────────────────
+    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0)
+    const monthCheckinsCount = await prisma.habitCheckin.count({
+      where: { habitId, date: { gte: startOfMonth } }
+    })
+
+    const goalReached = monthCheckinsCount + 1 === habit.goal
+    let finalXpGain = totalXpGain
+    let finalCoinsGain = habit.coinsReward
+
+    if (goalReached) {
+      finalXpGain += habit.xpReward * 5 // Bônus de 5x
+      finalCoinsGain += habit.coinsReward * 5
+    }
+
+    const { newLevel, newXp, leveledUp } = applyXpGain(dbUser.level, dbUser.xp, finalXpGain)
 
     // Desbloquear conquistas
     const unlockedAchievements = await checkAndUnlockAchievements(String(user.id))
@@ -60,7 +75,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         data: { 
           xp: newXp, 
           level: newLevel, 
-          coins: { increment: habit.coinsReward },
+          coins: { increment: finalCoinsGain },
           streak: newStreak,
           lastCheckin: now
         }
@@ -68,22 +83,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       prisma.transaction.create({
         data: {
           userId: String(user.id),
-          xpAmount: totalXpGain,
-          coinsAmount: habit.coinsReward,
+          xpAmount: finalXpGain,
+          coinsAmount: finalCoinsGain,
           type: 'HABIT_COMPLETE',
-          description: `Hábito: ${habit.name} ${bonusXp > 0 ? '(+Bônus de Classe!)' : ''}`
+          description: goalReached 
+            ? `META ATINGIDA! Hábito: ${habit.name}` 
+            : `Hábito: ${habit.name} ${bonusXp > 0 ? '(+Bônus de Classe!)' : ''}`
         }
       })
     ])
 
     return NextResponse.json({
-      message: 'Check-in realizado!',
-      xpEarned: totalXpGain,
-      coinsEarned: habit.coinsReward,
+      message: goalReached ? '🏆 META MENSAL ATINGIDA!' : 'Check-in realizado!',
+      xpEarned: finalXpGain,
+      coinsEarned: finalCoinsGain,
       leveledUp,
       newLevel,
       streak: newStreak,
       bonusXp,
+      goalReached,
       unlockedAchievements
     }, { status: 201 })
   } catch {

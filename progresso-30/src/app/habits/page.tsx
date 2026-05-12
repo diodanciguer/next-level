@@ -86,7 +86,15 @@ export default function HabitsPage() {
     const d = await res.json()
     if (res.ok) {
       addFloatingXp(d.xpEarned, rect.left + rect.width / 2, rect.top)
-      toast.success(`+${d.xpEarned} XP`)
+      if (d.goalReached) {
+        toast.success("🏆 META MENSAL ATINGIDA!", {
+          description: `Bônus de 5x aplicado! +${d.xpEarned} XP e +${d.coinsEarned} 🪙`,
+          duration: 6000
+        })
+        triggerLevelUpConfetti()
+      } else {
+        toast.success(`+${d.xpEarned} XP  +${d.coinsEarned} 🪙`)
+      }
       fetchData()
     } else toast.error(d.message)
   }

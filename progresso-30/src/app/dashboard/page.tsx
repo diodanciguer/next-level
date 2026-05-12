@@ -38,9 +38,16 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData() }, [])
 
-  const isCheckedInToday = (habit: Habit) => {
-    const today = new Date().setHours(0, 0, 0, 0)
-    return habit.checkins.some(c => new Date(c.date).setHours(0, 0, 0, 0) === today)
+  const isHabitDone = (habit: Habit) => {
+    const now = new Date()
+    const today = new Date(now).setHours(0, 0, 0, 0)
+    
+    if (habit.frequency === 'diário') {
+      return habit.checkins.some(c => new Date(c.date).setHours(0, 0, 0, 0) === today)
+    } else {
+      // Semanal: Já vem filtrado da API desde segunda-feira
+      return habit.checkins.length > 0
+    }
   }
   const loggedTodayBad = (bh: BadHabit) => {
     const today = new Date().setHours(0, 0, 0, 0)
@@ -54,15 +61,21 @@ export default function Dashboard() {
     if (res.ok) {
       if (!checked) {
         addFloatingXp(d.xpEarned, rect.left + rect.width / 2, rect.top)
-        toast.success(`+${d.xpEarned} XP  +${d.coinsEarned} 🪙`)
+        
+        if (d.goalReached) {
+          toast.success("🏆 META MENSAL ATINGIDA!", {
+            description: `Você completou este hábito ${d.goalReached ? 'pelo número de vezes definido!' : ''} +${d.xpEarned} XP e +${d.coinsEarned} 🪙`,
+            duration: 6000
+          })
+          triggerLevelUpConfetti()
+        } else {
+          toast.success(`+${d.xpEarned} XP  +${d.coinsEarned} 🪙`)
+        }
         
         // Verificar se todos os hábitos foram concluídos agora
         const habitsRes = await fetch('/api/dashboard')
         const latestData = await habitsRes.json()
-        const allDone = latestData.habits.every((h: any) => {
-          const today = new Date().setHours(0,0,0,0)
-          return h.checkins.some((c: any) => new Date(c.date).setHours(0,0,0,0) === today)
-        })
+        const allDone = latestData.habits.every((h: any) => isHabitDone(h))
         
         if (allDone && latestData.habits.length > 0) {
           setTimeout(() => {
@@ -143,7 +156,7 @@ export default function Dashboard() {
   const rank = getRank(user.level)
   const xpNext = xpForNextLevel(user.level)
   const xpPercent = Math.round((user.xp / xpNext) * 100)
-  const completedToday = habits.filter(h => isCheckedInToday(h)).length
+  const completedToday = habits.filter(h => isHabitDone(h)).length
   const classConfig = CLASS_CONFIG[user.characterClass as CharacterClass] || CLASS_CONFIG.Iniciante
 
   const container = {
@@ -257,7 +270,7 @@ export default function Dashboard() {
                 <p className="text-slate-500 text-sm">Nenhum hábito. Criar agora →</p>
               </Card></Link>
             ) : habits.map(habit => {
-              const checked = isCheckedInToday(habit)
+              const checked = isHabitDone(habit)
               return (
                 <motion.div key={habit.id} layout>
                   <Card className={`transition-all ${checked ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:shadow-sm'}`}>
