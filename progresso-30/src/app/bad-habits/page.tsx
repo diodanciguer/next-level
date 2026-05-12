@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Skull, Plus, Undo2, AlertTriangle, Trash2 } from 'lucide-react'
+import { Skull, Plus, Undo2, AlertTriangle, Trash2, Pencil } from 'lucide-react'
 
 type BadHabit = { id: string; name: string; description?: string; category: string; xpLost: number; coinsLost: number; logs: { date: string }[] }
 
@@ -18,6 +18,7 @@ export default function BadHabitsPage() {
   const [badHabits, setBadHabits] = useState<BadHabit[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -34,18 +35,42 @@ export default function BadHabitsPage() {
 
   useEffect(() => { fetchData() }, [])
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const res = await fetch('/api/bad-habits', {
-      method: 'POST',
+    const url = editingId ? `/api/bad-habits/${editingId}` : '/api/bad-habits'
+    const method = editingId ? 'PUT' : 'POST'
+    
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description, category, xpLost: Number(xpLost), coinsLost: Number(coinsLost) })
     })
+    
     if (res.ok) {
-      toast.success('Mau hábito cadastrado!')
-      setIsOpen(false); setName(''); setDescription('')
+      toast.success(editingId ? 'Mau hábito atualizado!' : 'Mau hábito cadastrado!')
+      handleCloseDialog()
       fetchData()
-    } else toast.error('Erro ao criar mau hábito')
+    } else toast.error(editingId ? 'Erro ao atualizar' : 'Erro ao criar mau hábito')
+  }
+
+  const handleCloseDialog = () => {
+    setIsOpen(false)
+    setEditingId(null)
+    setName('')
+    setDescription('')
+    setCategory('Saúde')
+    setXpLost('10')
+    setCoinsLost('0')
+  }
+
+  const openEditDialog = (bh: BadHabit) => {
+    setEditingId(bh.id)
+    setName(bh.name)
+    setDescription(bh.description || '')
+    setCategory(bh.category)
+    setXpLost(String(bh.xpLost))
+    setCoinsLost(String(bh.coinsLost))
+    setIsOpen(true)
   }
 
   const handleLog = async (id: string, alreadyLogged: boolean) => {
@@ -85,16 +110,17 @@ export default function BadHabitsPage() {
             <p className="text-slate-500 dark:text-slate-400 mt-1">Registre quando ceder e veja o impacto no seu progresso.</p>
           </div>
 
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger render={<Button className="bg-red-600 hover:bg-red-700 text-white" />}>
-              <Plus className="mr-2 h-4 w-4" /> Novo
+          <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+            <DialogTrigger render={<Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => { handleCloseDialog(); setIsOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Novo
+              </Button>}>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Cadastrar Mau Hábito</DialogTitle>
+                <DialogTitle>{editingId ? 'Editar Mau Hábito' : 'Cadastrar Mau Hábito'}</DialogTitle>
                 <DialogDescription>Um hábito que você quer evitar. Quando registrá-lo, perderá XP.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4 pt-2">
+              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Nome</Label>
                   <Input required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Gastei por impulso" />
@@ -124,7 +150,9 @@ export default function BadHabitsPage() {
                     <Input type="number" min="0" value={coinsLost} onChange={e => setCoinsLost(e.target.value)} />
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">Cadastrar Mau Hábito</Button>
+                <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
+                  {editingId ? 'Salvar Alterações' : 'Cadastrar Mau Hábito'}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -198,10 +226,16 @@ export default function BadHabitsPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {!logged && (
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(bh.id)}
-                        className="text-slate-300 hover:text-red-500 dark:hover:text-red-400 opacity-50 hover:opacity-100 transition-opacity">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bh)}
+                          className="text-slate-300 hover:text-blue-500 dark:hover:text-blue-400 opacity-50 hover:opacity-100 transition-opacity">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(bh.id)}
+                          className="text-slate-300 hover:text-red-500 dark:hover:text-red-400 opacity-50 hover:opacity-100 transition-opacity">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                     {logged && (
                       <Button variant="ghost" size="icon" title="Desfazer" onClick={() => handleLog(bh.id, true)}

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { ListChecks, Plus, Trash2, Star, Coins } from 'lucide-react'
+import { ListChecks, Plus, Trash2, Star, Coins, Pencil } from 'lucide-react'
 
 type Habit = { id: string; name: string; category: string; frequency: string; goal: number; xpReward: number; coinsReward: number; active: boolean; checkins: any[] }
 
@@ -18,6 +18,7 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const [name, setName] = useState('')
   const [category, setCategory] = useState('Saúde')
@@ -35,18 +36,44 @@ export default function HabitsPage() {
 
   useEffect(() => { fetchData() }, [])
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const res = await fetch('/api/habits', {
-      method: 'POST',
+    const url = editingId ? `/api/habits/${editingId}` : '/api/habits'
+    const method = editingId ? 'PUT' : 'POST'
+    
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, category, frequency, goal: Number(goal), xpReward: Number(xpReward), coinsReward: Number(coinsReward) })
     })
+    
     if (res.ok) {
-      toast.success('Hábito criado!')
-      setIsOpen(false); setName('')
+      toast.success(editingId ? 'Hábito atualizado!' : 'Hábito criado!')
+      handleCloseDialog()
       fetchData()
-    } else toast.error('Erro ao criar hábito')
+    } else toast.error(editingId ? 'Erro ao atualizar' : 'Erro ao criar hábito')
+  }
+
+  const handleCloseDialog = () => {
+    setIsOpen(false)
+    setEditingId(null)
+    setName('')
+    setCategory('Saúde')
+    setFrequency('diário')
+    setGoal('30')
+    setXpReward('10')
+    setCoinsReward('5')
+  }
+
+  const openEditDialog = (habit: Habit) => {
+    setEditingId(habit.id)
+    setName(habit.name)
+    setCategory(habit.category)
+    setFrequency(habit.frequency)
+    setGoal(String(habit.goal))
+    setXpReward(String(habit.xpReward))
+    setCoinsReward(String(habit.coinsReward))
+    setIsOpen(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -69,16 +96,17 @@ export default function HabitsPage() {
             <p className="text-slate-500 dark:text-slate-400 mt-1">Hábitos que constroem seu progresso diário.</p>
           </div>
 
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger render={<Button className="bg-green-600 hover:bg-green-700 text-white" />}>
-              <Plus className="mr-2 h-4 w-4" /> Novo Hábito
+          <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+            <DialogTrigger render={<Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => { handleCloseDialog(); setIsOpen(true); }}>
+                <Plus className="mr-2 h-4 w-4" /> Novo Hábito
+              </Button>}>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Criar Bom Hábito</DialogTitle>
+                <DialogTitle>{editingId ? 'Editar Hábito' : 'Criar Bom Hábito'}</DialogTitle>
                 <DialogDescription>Defina as recompensas de XP e moedas que você vai ganhar ao cumprir.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4 pt-2">
+              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Nome do Hábito</Label>
                   <Input required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Ir à academia" />
@@ -120,7 +148,9 @@ export default function HabitsPage() {
                     <Input type="number" min="0" value={coinsReward} onChange={e => setCoinsReward(e.target.value)} />
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Criar Hábito</Button>
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+                  {editingId ? 'Salvar Alterações' : 'Criar Hábito'}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -183,13 +213,19 @@ export default function HabitsPage() {
                     <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
                       <Coins className="h-3 w-3" /> +{habit.coinsReward} moedas
                     </span>
-                    <span className="text-slate-400 text-xs">Meta: {habit.goal}x/mês</span>
+                  <span className="text-slate-400 text-xs">Meta: {habit.goal}x/mês</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(habit.id)}
-                  className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(habit)}
+                    className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(habit.id)}
+                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
