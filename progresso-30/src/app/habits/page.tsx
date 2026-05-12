@@ -14,6 +14,7 @@ import { ListChecks, Plus, Trash2, Star, Coins, Pencil, CheckCircle2 } from 'luc
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFloatingXp } from '@/components/floating-xp'
 import { HabitsListSkeleton } from '@/components/dashboard-skeleton'
+import { triggerLevelUpConfetti } from '@/lib/confetti'
 
 type Habit = { id: string; name: string; category: string; frequency: string; goal: number; xpReward: number; coinsReward: number; active: boolean; checkins: any[] }
 
