@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USUÁRIO ─────────────────────────────────────────────────────────────────
+
+model User {
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  password          String
+  xp                Int                @default(0)   // XP no nível atual
+  level             Int                @default(1)
+  coins             Int                @default(0)
+  characterClass    String             @default("Iniciante")
+  streak            Int                @default(0)
+  lastCheckin       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  habits            Habit[]
+  badHabits         BadHabit[]
+  badHabitLogs      BadHabitLog[]
+  missions          Mission[]
+  userPlans         UserPlan[]
+  transactions      Transaction[]
+  rewards           Reward[]
+  rewardRedemptions RewardRedemption[]
+  achievements      UserAchievement[]
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  type        String            // STREAK, LEVEL, HABITS_COUNT, MISSIONS_COUNT
+  threshold   Int
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+}
+
+// ─── BONS HÁBITOS ────────────────────────────────────────────────────────────
+
+model Habit {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  category    String         // Saúde, Estudos, Finanças, Trabalho, Casa, Outro
+  frequency   String         // diário, semanal
+  goal        Int            @default(30) // Meta mensal
+  xpReward    Int            @default(10)
+  coinsReward Int            @default(5)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  checkins    HabitCheckin[]
+  planHabitId String?
+}
+
+model HabitCheckin {
+  id        String   @id @default(cuid())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+// ─── MAUS HÁBITOS ────────────────────────────────────────────────────────────
+
+model BadHabit {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  category    String        // Saúde, Estudos, Finanças, Trabalho, Casa, Outro
+  xpLost      Int           @default(10)
+  coinsLost   Int           @default(0)
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  logs        BadHabitLog[]
+}
+
+model BadHabitLog {
+  id         String   @id @default(cuid())
+  badHabitId String
+  badHabit   BadHabit @relation(fields: [badHabitId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime @default(now())
+}
+
+// ─── MISSÕES ─────────────────────────────────────────────────────────────────
+
+model Mission {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  difficulty  String    // EASY, NORMAL, HARD, EXTREME, ABSURD
+  xpReward    Int
+  coinsReward Int
+  status      String    @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+// ─── PLANOS DE 30 DIAS ───────────────────────────────────────────────────────
+
+model Plan {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  planHabits  PlanHabit[]
+  userPlans   UserPlan[]
+}
+
+model PlanHabit {
+  id          String @id @default(cuid())
+  planId      String
+  plan        Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name        String
+  category    String
+  goal        Int    @default(30)
+  xpReward    Int    @default(10)
+  coinsReward Int    @default(5)
+}
+
+model UserPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  startDate DateTime @default(now())
+  status    String   @default("ACTIVE")
+}
+
+// ─── TRANSAÇÕES (Histórico de XP e Moedas) ───────────────────────────────────
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xpAmount    Int      @default(0)
+  coinsAmount Int      @default(0)
+  type        String   // HABIT_COMPLETE, BAD_HABIT, MISSION_COMPLETE, REWARD_REDEEM
+  description String
+  date        DateTime @default(now())
+}
+
+// ─── LOJA DE RECOMPENSAS ─────────────────────────────────────────────────────
+
+model Reward {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  coinCost          Int                @default(100)
+  levelRequired     Int                @default(1)
+  category          String             // Lazer, Descanso, Compra, Comida, Saúde, Especial
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  rewardRedemptions RewardRedemption[]
+}
+
+model RewardRedemption {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardId String
+  reward   Reward   @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  used     Boolean  @default(false)
+  usedAt   DateTime?
+  date     DateTime @default(now())
+}
